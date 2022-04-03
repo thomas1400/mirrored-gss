@@ -1,17 +1,15 @@
 package gss;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.PriorityQueue;
+import java.util.Queue;
 import javax.swing.Timer;
 import network.Address;
 import network.Message;
 import network.Network;
 import network.Node;
-import whiteboard.WhiteboardEvent;
 
 public class GSS extends Node {
 
@@ -32,9 +30,9 @@ public class GSS extends Node {
     super(address, network);
     clients = new ArrayList<>();
 
-    Comparator<GameEvent> gameEventComparator = (o1, o2) -> Float.compare(o1.getSimTime(), o2.getSimTime());
+    Comparator<GameEvent> gameEventComparator = Comparator.comparingInt(GameEvent::getSimTime);
     Comparator<GameEventMessage> gameEventMessageComparator = (o1, o2) -> gameEventComparator.compare(o1.getEvent(), o2.getEvent());
-    Comparator<GameState> gameStateComparator = (o1, o2) -> Float.compare(o1.getSimTime(), o2.getSimTime());
+    Comparator<GameState> gameStateComparator = Comparator.comparingInt(GameState::getSimTime);
 
     inputQueue = new PriorityQueue<>(gameEventMessageComparator);
     executedQueue = new PriorityQueue<>(gameEventMessageComparator.reversed());
@@ -74,27 +72,45 @@ public class GSS extends Node {
   }
 
   private synchronized boolean processInputQueueEvents() {
+
+    makeEventSimTimesMonotonicallyIncreasing(inputQueue);
+
     boolean updated = false;
     GameEventMessage input = inputQueue.poll();
     while (input != null) {
       GameEvent event = input.getEvent();
       if (event.getSimTime() < state.getSimTime()) {
         // a mis-ordering happened and we need to roll back to this time
+        System.out.printf("[gss] rolling back to s.t. %d\n", event.getSimTime());
         rollbackTo(event.getSimTime());
       }
 
       state.applyEvent(input.getEvent());
+      executedQueue.add(input);
       saveStates.add(state.copy());
 
       if (clients.contains(input.getSource())) {
         outputQueue.add(new GameEventMessage(input.getEvent(), this.getAddress()));
       }
-      updated = true;
-      executedQueue.add(input);
 
+      updated = true;
       input = inputQueue.poll();
     }
     return updated;
+  }
+
+  private void makeEventSimTimesMonotonicallyIncreasing(Queue<GameEventMessage> queue) {
+    if (queue.isEmpty()) {
+      return;
+    }
+    int lastSimTime = queue.peek().getEvent().getSimTime() - 1;
+    for (GameEventMessage message : queue) {
+      GameEvent event = message.getEvent();
+      if (event.getSimTime() == lastSimTime) {
+        event.setSimTime(lastSimTime + 1);
+      }
+      lastSimTime = event.getSimTime();
+    }
   }
 
   private synchronized void broadcastOutputsToGSSs() {
@@ -107,13 +123,11 @@ public class GSS extends Node {
   }
 
   private synchronized void broadcastStateToClients() {
-    for (Address client : clients) {
-      this.send(new GameStateMessage(state.copy()), client);
-      System.out.printf("[gss] sent state with time %f to client with address %s\n", state.getSimTime(), client);
-    }
+    sendToAllClients(new GameStateMessage(state.copy()));
+    System.out.printf("[gss] sent state with s.t. %d to all clients\n", state.getSimTime());
   }
 
-  private synchronized void rollbackTo(float targetTime) {
+  private synchronized void rollbackTo(int targetTime) {
     /*
      * 1. Roll back state to target time. Discard saved states from later times.
      * 2. Move all events in the executed queue with time > target time to the input queue.
@@ -123,8 +137,17 @@ public class GSS extends Node {
 //    System.out.println("roll back to ".concat(Float.toString(targetTime)));
 
     // 1. roll back state to target time
-    saveStates.removeIf((gs) -> gs.getSimTime() > targetTime);
-    assert saveStates.peek() != null;
+    GameState saveState = saveStates.poll();
+    while (saveState != null && saveState.getSimTime() > targetTime) {
+      // send an anti-message to clients for each rolled-back state
+      sendAntiMessageForState(saveState);
+
+      saveState = saveStates.poll();
+    }
+    if (saveState != null) {
+      saveStates.add(saveState);
+    }
+    assert saveStates.peek() != null; // there will always be at least the initial state left
     state = saveStates.peek().copy();
 
     // 2. move rolled-back events back to the input queue
@@ -138,6 +161,8 @@ public class GSS extends Node {
     }
 
     /*
+    // this is commented out because I made the simplifying assumption that executing game events
+    // does not generate new game events. therefore, there's no need for anti-messages at this level
     // 3. cancel outputs
     GameEventMessage output = outputtedQueue.poll();
     while (output != null && output.getEvent().getSimTime() > targetTime) {
@@ -148,6 +173,17 @@ public class GSS extends Node {
       outputtedQueue.add(output);
     }
      */
+  }
+
+  private void sendAntiMessageForState(GameState saveState) {
+    sendToAllClients(new GameStateMessage(saveState.copy(), true));
+    System.out.printf("[gss] sent anti-state with s.t. %d to all clients\n", saveState.getSimTime());
+  }
+
+  private void sendToAllClients(Message message) {
+    for (Address client : clients) {
+      this.send(message, client);
+    }
   }
 
   /* --------------

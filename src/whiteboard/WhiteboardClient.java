@@ -2,32 +2,47 @@ package whiteboard;
 
 import gss.GSSClient;
 import gss.GameEventMessage;
+import gss.GameState;
 import gss.GameStateMessage;
-import java.awt.*;
+import java.awt.Canvas;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Frame;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Image;
+import java.awt.Label;
+import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import javax.swing.Timer;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import network.Address;
 import network.Message;
 import network.Network;
+import java.util.Queue;
+import java.util.PriorityQueue;
 
 public class WhiteboardClient extends GSSClient implements MouseListener, MouseMotionListener {
 
   private Component whiteboard;
   private WhiteboardState state;
   private Point lastDrawPoint;
-  private Instant lastTimeUpdate;
-  private Address gss;
+  private final Queue<GameStateMessage> antiMessages;
+  private final Queue<WhiteboardState> saveStates;
 
   public WhiteboardClient(Address address, Address gss, Network network) {
     super(address, gss, network);
 
-    this.gss = gss;
+    antiMessages = new PriorityQueue<>(
+        Comparator.comparingInt(
+            (GameStateMessage o) -> o.getState().getSimTime()));
+    saveStates = new PriorityQueue<>(Comparator.comparingInt(
+        WhiteboardState::getSimTime).reversed());
 
     buildUI();
   }
@@ -44,7 +59,7 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
     canvas1.setBackground(Color.white);
     gridbag.setConstraints(canvas1, c);
     f.add(canvas1);
-    Label label1 = new java.awt.Label("Collaborative Whiteboard"); // FIXME
+    Label label1 = new java.awt.Label("Collaborative Whiteboard"); // FIXME add user ID?
     label1.setSize(100, 30);
     label1.setAlignment(Label.CENTER);
     gridbag.setConstraints(label1, c);
@@ -56,6 +71,7 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
     whiteboard.addMouseMotionListener(this);
     Image buffer = whiteboard.createImage(f.getSize().width, f.getSize().height);
     state = new WhiteboardState(buffer, 0); // FIXME sim time
+    saveStates.add(state);
     redraw();
 
     f.setResizable(false);
@@ -65,21 +81,8 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
         System.exit(0);
       }
     });
-
-    lastTimeUpdate = Instant.now();
-//    startSimTimeUpdates();
   }
 
-  private void startSimTimeUpdates() {
-    Timer t = new Timer(10, //will run every 10 ms //FIXME factor out magic constant
-        e -> {
-          Instant now = Instant.now();
-          float timeDelta = ChronoUnit.MILLIS.between(lastTimeUpdate, now);
-          state.applyEvent(new WhiteboardEvent(null, null, state.getSimTime() + timeDelta));
-          lastTimeUpdate = now;
-        });
-    t.start();
-  }
 
   private void redraw() {
     whiteboard.getGraphics().drawImage(state.getBoard(), 0, 0, whiteboard);
@@ -111,19 +114,56 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
     if (!(m instanceof GameStateMessage gsm)) {
       throw new RuntimeException("Attempted to use handler for wrong kind of message");
     }
-    if (!(gsm.state() instanceof WhiteboardState state)) {
+    if (!(gsm.getState() instanceof WhiteboardState state)) {
       throw new RuntimeException("Mismatched state; WhiteboardClient can only handle WhiteboardState");
     }
-
-    if (state.getSimTime() <= this.state.getSimTime()) {
+    if (state.getSimTime() < this.state.getSimTime()) {
       return; // it never makes sense to accept state with a lower/equal sim time to our own
     }
 
-    System.out.printf("[client] addr %s received state (s.t. %f)\n", this.getAddress(), state.getSimTime());
+    if (matchesAntiMessage(state)) {
+      return; // ignore new states for which we have an anti-message
+    }
 
-    this.state = state; // TODO : rollback protocol here
+    if (gsm.isAntiMessage()) {
+      handleNewAntiMessage(gsm);
+      return;
+    }
+
+    handleNewStateMessage(state);
+  }
+
+
+  private void handleNewAntiMessage(GameStateMessage gsm) {
+    // Add to our queue of anti-messages. If needed, roll back to highest-sim-time valid state.
+    antiMessages.add(gsm);
+    while (matchesAntiMessage(this.state)) {
+      this.state = saveStates.poll();
+    }
+    saveStates.add((WhiteboardState) this.state.copy());
+  }
+
+  private void handleNewStateMessage(WhiteboardState state) {
+    System.out.printf("[client] addr %s received state (s.t. %d)\n", this.getAddress(), state.getSimTime());
+
+    this.state = state; // our rollback protocol is just to directly reset the state
+    saveStates.add((WhiteboardState) state.copy());
+
     redraw();
-//    this.whiteboard.requestFocusInWindow();
+    // this.whiteboard.requestFocusInWindow(); // not sure if this is needed
+  }
+
+  private boolean matchesAntiMessage(WhiteboardState state) {
+    // Check for anti-messages that match the new state
+    for (GameStateMessage am : antiMessages) {
+      if (am.getState().getSimTime() > state.getSimTime()) {
+        break;
+      }
+      if (am.getState().equals(state)) {
+        return true;
+      }
+    }
+    return false;
   }
 
 

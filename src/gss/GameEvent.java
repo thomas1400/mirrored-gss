@@ -6,13 +6,17 @@ public abstract class GameEvent {
    * Does this have other requirements? I think the gss.GameEvent is kind of just a data store.
    */
 
-  private final float simTime;
+  private int simTime;
 
-  public GameEvent(float simTime) {
+  public GameEvent(int simTime) {
     this.simTime = simTime;
   }
 
-  public float getSimTime() {
+  public int getSimTime() {
     return simTime;
+  }
+
+  public void setSimTime(int simTime) {
+    this.simTime = simTime;
   }
 }

@@ -1,8 +1,10 @@
 package gss;
 
 import network.Address;
+import network.Message;
 import network.Network;
 import network.Node;
+import whiteboard.WhiteboardState;
 
 public class GSSClient extends Node {
 

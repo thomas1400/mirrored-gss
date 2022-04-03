@@ -50,6 +50,7 @@ public class Network {
           try {
             handler.invoke(dstNode, message, src);
           } catch (InvocationTargetException | IllegalAccessException e) {
+            e.printStackTrace();
             throw new RuntimeException(
                 "InvocationTargetException or IllegalAccessException in send");
           }

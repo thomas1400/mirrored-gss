@@ -13,11 +13,11 @@ public class WhiteboardState extends GameState {
 
   private final BufferedImage board;
 
-  public WhiteboardState(Image board, float simTime) {
+  public WhiteboardState(Image board, int simTime) {
     this((BufferedImage) board, simTime);
   }
 
-  public WhiteboardState(BufferedImage board, float simTime) {
+  public WhiteboardState(BufferedImage board, int simTime) {
     super(simTime);
     this.board = board;
   }
@@ -64,7 +64,7 @@ public class WhiteboardState extends GameState {
       return false;
     }
 
-    return imagesAreEqual(board, ows.getBoard());
+    return this.getSimTime() == ows.getSimTime() && imagesAreEqual(board, ows.getBoard());
   }
 
   /**

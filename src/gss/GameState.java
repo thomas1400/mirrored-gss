@@ -9,13 +9,13 @@ public abstract class GameState {
    * apply GameEvents to update.
    */
 
-  private float simTime;
+  private int simTime;
 
-  public GameState(float simTime) {
+  public GameState(int simTime) {
     this.simTime = simTime;
   }
 
-  public float getSimTime() {
+  public int getSimTime() {
     return simTime;
   }
 

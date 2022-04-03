@@ -16,7 +16,7 @@ import whiteboard.WhiteboardClient;
 import whiteboard.WhiteboardEvent;
 import whiteboard.WhiteboardState;
 
-public class TestWithoutAntiMessages {
+public class TestGSS {
 
   private TestingNetwork network;
   private Map<Integer, GSS> servers;
@@ -204,13 +204,13 @@ public class TestWithoutAntiMessages {
       boolean converged = true;
       for (int c = 0; c < nClients; c++) {
         if (!client(c).getState().equals(reference)) {
-          System.out.printf("Client %d state (st %f) does not equal reference (st %f)\n", c, client(c).getState().getSimTime(), reference.getSimTime());
+          System.out.printf("Client %d state (st %d) does not equal reference (st %d)\n", c, client(c).getState().getSimTime(), reference.getSimTime());
           converged = false;
         }
       }
       for (int s = 0; s < nServers; s++) {
         if (!gss(s).getState().equals(reference)) {
-          System.out.printf("Client %d state (st %f) does not equal reference (st %f)\n", s, gss(s).getState().getSimTime(), reference.getSimTime());
+          System.out.printf("Client %d state (st %d) does not equal reference (st %d)\n", s, gss(s).getState().getSimTime(), reference.getSimTime());
           converged =  false;
         }
       }
@@ -220,7 +220,7 @@ public class TestWithoutAntiMessages {
 
   private WhiteboardEvent randomWhiteboardEvent(WhiteboardClient client) {
     WhiteboardState state = client.getState();
-    float simTime = state.getSimTime() + 1;
+    int simTime = state.getSimTime() + 1;
     int width = state.getBoard().getWidth();
     int height = state.getBoard().getHeight();
     Point start = randomPoint(width, height);

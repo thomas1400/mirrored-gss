@@ -9,7 +9,7 @@ public class WhiteboardEvent extends GameEvent {
   private final Point start;
   private final Point end;
 
-  public WhiteboardEvent(Point start, Point end, float simTime) {
+  public WhiteboardEvent(Point start, Point end, int simTime) {
     super(simTime);
     this.start = start;
     this.end = end;
