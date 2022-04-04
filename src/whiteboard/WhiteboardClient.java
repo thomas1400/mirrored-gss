@@ -109,8 +109,8 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
       return; // it never makes sense to accept state with a lower sim time to our own
     }
 
-    System.out.printf("[client] addr %s received state (s.t. %d, g.t. %d)\n", this.getAddress(),
-        state.getSimTime(), gsm.getGssTime());
+//    System.out.printf("[client] addr %s received state (s.t. %d, g.t. %d)\n", this.getAddress(),
+//      state.getSimTime(), gsm.getGssTime());
 
     this.state = (WhiteboardState) state.copy();
     this.stateGssTime = gsm.getGssTime();

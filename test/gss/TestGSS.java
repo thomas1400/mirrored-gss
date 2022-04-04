@@ -108,59 +108,16 @@ public class TestGSS {
 
     setupNetwork(Network.RELIABLE_TX, 1, 4, new int[]{0, 0, 0, 0});
 
-    sendRandomEvents(T, 0);
-    awaitStateConvergence(5);
-    network.pause();
-    sendRandomEvents(T, 0);
-    sendRandomEvents(T, 1);
-    network.unpause();
-    awaitStateConvergence(5);
-    sendRandomEvents(T, 0);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 2);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 0);
-    network.unpause();
-    awaitStateConvergence(5);
-    sendRandomEvents(T, 0);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 2);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 2);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 0);
-    awaitStateConvergence(5);
+    randomEventsOneServer(T);
   }
 
   @Test
   public synchronized void testOneServerUnreliable() {
     final int T = 5;
 
-    setupNetwork(0.8f, 1, 4, new int[]{0, 0, 0, 0});
+    setupNetwork(Network.UNRELIABLE_TX, 1, 4, new int[]{0, 0, 0, 0});
 
-    sendRandomEvents(T, 0);
-    awaitStateConvergence(5);
-    network.pause();
-    sendRandomEvents(T, 0);
-    sendRandomEvents(T, 1);
-    network.unpause();
-    awaitStateConvergence(5);
-    network.pause();
-    sendRandomEvents(T, 0);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 2);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 0);
-    network.unpause();
-    awaitStateConvergence(5);
-    sendRandomEvents(T, 0);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 2);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 2);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 0);
-    awaitStateConvergence(10);
+    randomEventsOneServer(T);
   }
 
   @Test
@@ -169,6 +126,44 @@ public class TestGSS {
 
     setupNetwork(Network.RELIABLE_TX, 2, 4, new int[]{0, 0, 1, 1});
 
+    randomEventsTwoServers(T);
+  }
+
+  @Test
+  public synchronized void testTwoServersUnreliable() {
+    final int T = 5;
+
+    setupNetwork(Network.UNRELIABLE_TX, 2, 4, new int[]{0, 0, 1, 1});
+
+    randomEventsTwoServers(T);
+  }
+
+  private void randomEventsOneServer(int T) {
+    sendRandomEvents(T, 0);
+    awaitStateConvergence(5);
+    network.pause();
+    sendRandomEvents(T, 0);
+    sendRandomEvents(T, 1);
+    network.unpause();
+    awaitStateConvergence(5);
+    sendRandomEvents(T, 0);
+    sendRandomEvents(T, 1);
+    sendRandomEvents(T, 2);
+    sendRandomEvents(T, 1);
+    sendRandomEvents(T, 0);
+    network.unpause();
+    awaitStateConvergence(5);
+    sendRandomEvents(T, 0);
+    sendRandomEvents(T, 1);
+    sendRandomEvents(T, 2);
+    sendRandomEvents(T, 1);
+    sendRandomEvents(T, 2);
+    sendRandomEvents(T, 1);
+    sendRandomEvents(T, 0);
+    awaitStateConvergence(5);
+  }
+
+  private void randomEventsTwoServers(int T) {
     sendRandomEvents(T, 0);
     awaitStateConvergence(5);
     network.pause();
@@ -192,7 +187,7 @@ public class TestGSS {
     sendRandomEvents(T, 3);
     sendRandomEvents(T, 1);
     sendRandomEvents(T, 0);
-    awaitStateConvergence(500);
+    awaitStateConvergence(5);
   }
 
   private void sendRandomEvents(int number, int clientNum) {

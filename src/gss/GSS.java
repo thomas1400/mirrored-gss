@@ -11,6 +11,7 @@ import network.Address;
 import network.Message;
 import network.Network;
 import network.Node;
+import whiteboard.WhiteboardState;
 
 public class GSS extends Node {
 
@@ -55,7 +56,6 @@ public class GSS extends Node {
     boolean stateUpdated = processInputQueueEvents();
 
     if (stateUpdated) {
-      gssTime += 1;
       broadcastStateToClients();
     }
 
@@ -70,19 +70,20 @@ public class GSS extends Node {
     GameEventMessage input = inputQueue.poll();
     while (input != null) {
       GameEvent event = input.getEvent();
-      System.out.printf("[gss %s] processing input (s.t. %d)\n", getAddress(), event.getSimTime());
-      // FIXME: might need better ordering than this. roll back if the event to be executed
-      //        is "less than" the last event we executed.
-      if (event.getSimTime() < state.getSimTime()) {
+//      System.out.printf("[gss %s] processing input (s.t. %d)\n", getAddress(), event.getSimTime());
+      if (!executedQueue.isEmpty() && input.compareTo(executedQueue.peek()) < 0) {
         // a mis-ordering happened and we need to roll back to this time
-        System.out.printf("[gss %s] rolling back to s.t. %d\n", getAddress(), event.getSimTime());
+//        System.out.printf("[gss %s] rolling back to s.t. %d\n", getAddress(), event.getSimTime());
         rollbackTo(event.getSimTime());
         inputQueue.add(input);
         input = inputQueue.poll();
         continue;
       }
 
+      gssTime += 1;
       state.applyEvent(input.getEvent());
+      state.setGssTime(gssTime);
+//      System.out.printf("[gss %s] applied input (s.t. %d @ %s) new bp=%d\n", getAddress(), event.getSimTime(), input.getSource(), ((WhiteboardState) state).numberOfBlackPixels());
       executedQueue.add(input);
       saveStates.add(state.copy());
 
@@ -134,6 +135,7 @@ public class GSS extends Node {
     saveStates.add(saveState);
     assert saveState != null;
     state = saveState.copy();
+//    System.out.printf("[gss %s] after rollback bp = %d, st = %d\n", getAddress(), ((WhiteboardState) state).numberOfBlackPixels(), state.getSimTime());
 
     // 2. move rolled-back events back to the input queue
     GameEventMessage executed = executedQueue.poll();

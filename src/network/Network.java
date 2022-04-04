@@ -11,6 +11,7 @@ import java.util.TimerTask;
 public class Network {
 
   public static final float RELIABLE_TX = 1.0f;
+  public static final float UNRELIABLE_TX = 0.8f;
   public static final long RETRY_MILLIS = 50;
 
   private final Map<Address, Node> nodes;

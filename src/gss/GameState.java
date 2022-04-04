@@ -1,5 +1,7 @@
 package gss;
 
+import java.util.Comparator;
+
 public abstract class GameState implements Comparable<GameState> {
   /*
    * Interface for game state for a game compatible with GSSs. Must be serializable and able to
@@ -7,13 +9,27 @@ public abstract class GameState implements Comparable<GameState> {
    */
 
   private int simTime;
+  private int gssTime;
 
   public GameState(int simTime) {
+    this(simTime, 0);
+  }
+
+  public GameState(int simTime, int gssTime) {
     this.simTime = simTime;
+    this.gssTime = gssTime;
   }
 
   public int getSimTime() {
     return simTime;
+  }
+
+  public int getGssTime() {
+    return this.gssTime;
+  }
+
+  public void setGssTime(int gssTime) {
+    this.gssTime = gssTime;
   }
 
   /**
@@ -29,9 +45,9 @@ public abstract class GameState implements Comparable<GameState> {
   public abstract GameState copy();
 
   public int compareTo(GameState o) {
-    if (this.getSimTime() == o.getSimTime()) {
-      return Integer.compare(this.hashCode(), o.hashCode());
-    }
-    return Integer.compare(this.getSimTime(), o.getSimTime());
+    return Comparator.comparing(GameState::getSimTime)
+        .thenComparing(GameState::getGssTime)
+        .thenComparing(GameState::hashCode)
+        .compare(this, o);
   }
 }

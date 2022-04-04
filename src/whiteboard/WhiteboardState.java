@@ -28,7 +28,7 @@ public class WhiteboardState extends GameState {
    * @param bi image to copy
    * @return deep copy of input image
    */
-  private static BufferedImage deepCopy(BufferedImage bi) {
+  private synchronized static BufferedImage deepCopy(BufferedImage bi) {
     ColorModel cm = bi.getColorModel();
     boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
     WritableRaster raster = bi.copyData(null);
@@ -42,7 +42,7 @@ public class WhiteboardState extends GameState {
    * @param imgB the second image.
    * @return whether the images are both the same or not.
    */
-  public static boolean imagesAreEqual(BufferedImage imgA, BufferedImage imgB) {
+  public synchronized static boolean imagesAreEqual(BufferedImage imgA, BufferedImage imgB) {
     // The images must be the same size.
     if (imgA.getWidth() != imgB.getWidth() || imgA.getHeight() != imgB.getHeight()) {
       return false;
@@ -64,7 +64,7 @@ public class WhiteboardState extends GameState {
     return true;
   }
 
-  public BufferedImage getBoard() {
+  public synchronized BufferedImage getBoard() {
     return this.board;
   }
 
@@ -85,8 +85,10 @@ public class WhiteboardState extends GameState {
   }
 
   @Override
-  public GameState copy() {
-    return new WhiteboardState(deepCopy(board), getSimTime());
+  public synchronized GameState copy() {
+    WhiteboardState copy = new WhiteboardState(deepCopy(board), getSimTime());
+    copy.setGssTime(this.getGssTime());
+    return copy;
   }
 
   @Override
@@ -100,5 +102,22 @@ public class WhiteboardState extends GameState {
 //      System.out.printf("not equal: my hash is %d other is %d, diff %d\n", board.hashCode(), ows.getBoard().hashCode(), board.hashCode()-ows.getBoard().hashCode());
 //    }
 //    return equal;
+  }
+
+  public synchronized int numberOfBlackPixels() {
+    int width = board.getWidth();
+    int height = board.getHeight();
+
+    // Loop over every pixel.
+    int black = 0;
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        // Compare the pixels for equality.
+        if (board.getRGB(x,y) == Color.BLACK.getRGB()) {
+          black++;
+        }
+      }
+    }
+    return black;
   }
 }
