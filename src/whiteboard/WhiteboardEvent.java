@@ -2,7 +2,6 @@ package whiteboard;
 
 import gss.GameEvent;
 import java.awt.Point;
-import java.util.Collection;
 
 public class WhiteboardEvent extends GameEvent {
 

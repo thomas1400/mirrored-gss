@@ -14,8 +14,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import util.Pair;
 import util.TestingMessage;
-import util.TestingNode;
 import util.TestingNetwork;
+import util.TestingNode;
 
 public class TestNetwork {
 
@@ -45,7 +45,8 @@ public class TestNetwork {
     int T = 2000;
 
     // Send a series of messages and confirm that they're all received
-    setupNetwork(Network.RELIABLE_TX, IntStream.rangeClosed(1, N).boxed().collect(Collectors.toList()));
+    setupNetwork(Network.RELIABLE_TX,
+        IntStream.rangeClosed(1, N).boxed().collect(Collectors.toList()));
 
     Map<Integer, List<Pair<Message, Address>>> expectedReceivedMessages = new HashMap<>();
 
@@ -54,8 +55,8 @@ public class TestNetwork {
     }
 
     for (int i = 0; i < T; i++) {
-      int src = random.nextInt(1, N+1);
-      int dst = random.nextInt(1, N+1);
+      int src = random.nextInt(1, N + 1);
+      int dst = random.nextInt(1, N + 1);
       int data = random.nextInt();
 
       TestingMessage message = new TestingMessage(data);
@@ -90,8 +91,8 @@ public class TestNetwork {
     }
 
     for (int i = 0; i < T; i++) {
-      int src = random.nextInt(1, N+1);
-      int dst = random.nextInt(1, N+1);
+      int src = random.nextInt(1, N + 1);
+      int dst = random.nextInt(1, N + 1);
       int data = random.nextInt();
 
       TestingMessage message = new TestingMessage(data);

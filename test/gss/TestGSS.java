@@ -44,7 +44,8 @@ public class TestGSS {
     }
 
     for (int c = 0; c < nClients; c++) {
-      WhiteboardClient client = new WhiteboardClient(new Address(nServers+c), gss(connections[c]).getAddress(), network);
+      WhiteboardClient client = new WhiteboardClient(new Address(nServers + c),
+          gss(connections[c]).getAddress(), network);
       gss(connections[c]).addClient(client);
       gss(connections[c]).setState(client.getState().copy());
       clients.put(c, client);
@@ -65,10 +66,12 @@ public class TestGSS {
     for (int i = 0; i < T; i++) {
       WhiteboardEvent delta = randomWhiteboardEvent(client(0));
       client(0).acceptTestingEvent(delta);
-      await().atMost(Duration.ofSeconds(1)).until(() -> client(0).getState().equals(gss(0).getState()));
+      await().atMost(Duration.ofSeconds(1))
+          .until(() -> client(0).getState().equals(gss(0).getState()));
     }
 
-    await().atMost(Duration.ofSeconds(10)).until(() -> client(0).getState().equals(client(1).getState()));
+    await().atMost(Duration.ofSeconds(10))
+        .until(() -> client(0).getState().equals(client(1).getState()));
   }
 
   @Test
@@ -141,7 +144,7 @@ public class TestGSS {
     sendRandomEvents(T, 0);
     sendRandomEvents(T, 1);
     network.unpause();
-    awaitStateConvergence(5); // FIXME this one doesn't work! figure out the bug
+    awaitStateConvergence(5);
     network.pause();
     sendRandomEvents(T, 0);
     sendRandomEvents(T, 1);
@@ -178,16 +181,18 @@ public class TestGSS {
     sendRandomEvents(T, 2);
     sendRandomEvents(T, 1);
     sendRandomEvents(T, 0);
+    awaitStateConvergence(5);
+    network.pause();
+    sendRandomEvents(T, 0);
+    sendRandomEvents(T, 3);
+    sendRandomEvents(T, 2);
+    sendRandomEvents(T, 1);
     network.unpause();
-    awaitStateConvergence(5);
-    sendRandomEvents(T, 0);
-    sendRandomEvents(T, 1);
     sendRandomEvents(T, 2);
-    sendRandomEvents(T, 1);
-    sendRandomEvents(T, 2);
+    sendRandomEvents(T, 3);
     sendRandomEvents(T, 1);
     sendRandomEvents(T, 0);
-    awaitStateConvergence(5);
+    awaitStateConvergence(500);
   }
 
   private void sendRandomEvents(int number, int clientNum) {
@@ -204,14 +209,16 @@ public class TestGSS {
       boolean converged = true;
       for (int c = 0; c < nClients; c++) {
         if (!client(c).getState().equals(reference)) {
-          System.out.printf("Client %d state (st %d) does not equal reference (st %d)\n", c, client(c).getState().getSimTime(), reference.getSimTime());
+          System.out.printf("Client %d state (st %d) does not equal reference (st %d)\n", c,
+              client(c).getState().getSimTime(), reference.getSimTime());
           converged = false;
         }
       }
       for (int s = 0; s < nServers; s++) {
         if (!gss(s).getState().equals(reference)) {
-          System.out.printf("Client %d state (st %d) does not equal reference (st %d)\n", s, gss(s).getState().getSimTime(), reference.getSimTime());
-          converged =  false;
+          System.out.printf("Server %d state (st %d) does not equal reference (st %d)\n", s,
+              gss(s).getState().getSimTime(), reference.getSimTime());
+          converged = false;
         }
       }
       return converged;

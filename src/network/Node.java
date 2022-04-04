@@ -1,6 +1,7 @@
 package network;
 
 public class Node {
+
   private final Address address;
   private final Network network;
 

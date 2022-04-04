@@ -11,11 +11,11 @@ import java.util.TimerTask;
 public class Network {
 
   public static final float RELIABLE_TX = 1.0f;
-  private final long RETRY_MILLIS = 50;
+  public static final long RETRY_MILLIS = 50;
 
   private final Map<Address, Node> nodes;
-  protected float txSuccessRate;
   private final Random random;
+  protected float txSuccessRate;
 
   public Network(float txSuccessRate) {
     this.txSuccessRate = txSuccessRate;
@@ -58,9 +58,6 @@ public class Network {
 //          System.out.printf("sent message from address %s to %s%n", src, dst);
 
           retryTimer.cancel();
-//          System.out.printf("[network] successful send to node with address %s\n", dst);
-        } else {
-//          System.out.printf("[network] failed to send to node with address %s\n", dst);
         }
       }
     };

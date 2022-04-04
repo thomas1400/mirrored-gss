@@ -1,10 +1,11 @@
 package gss;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.PriorityQueue;
-import java.util.Queue;
 import javax.swing.Timer;
 import network.Address;
 import network.Message;
@@ -15,30 +16,26 @@ public class GSS extends Node {
 
   public static final int GSS_UPDATE_PERIOD_MS = 25;
 
-  private GameState state;
-  public Collection<Address> clients;
-
-  // Components of Time Warp
   private final PriorityQueue<GameEventMessage> inputQueue;
   private final PriorityQueue<GameEventMessage> executedQueue;
   private final PriorityQueue<GameEventMessage> outputQueue;
   private final PriorityQueue<GameEventMessage> outputtedQueue;
   private final PriorityQueue<GameState> saveStates;
+  public Collection<Address> clients;
+  private GameState state;
+  private int gssTime;
 
 
   public GSS(Address address, Network network) {
     super(address, network);
     clients = new ArrayList<>();
 
-    Comparator<GameEvent> gameEventComparator = Comparator.comparingInt(GameEvent::getSimTime);
-    Comparator<GameEventMessage> gameEventMessageComparator = (o1, o2) -> gameEventComparator.compare(o1.getEvent(), o2.getEvent());
-    Comparator<GameState> gameStateComparator = Comparator.comparingInt(GameState::getSimTime);
-
-    inputQueue = new PriorityQueue<>(gameEventMessageComparator);
-    executedQueue = new PriorityQueue<>(gameEventMessageComparator.reversed());
-    outputQueue = new PriorityQueue<>(gameEventMessageComparator);
-    outputtedQueue = new PriorityQueue<>(gameEventMessageComparator.reversed());
-    saveStates = new PriorityQueue<>(gameStateComparator.reversed());
+    inputQueue = new PriorityQueue<>();
+    executedQueue = new PriorityQueue<>(Collections.reverseOrder());
+    outputQueue = new PriorityQueue<>();
+    outputtedQueue = new PriorityQueue<>(Collections.reverseOrder());
+    saveStates = new PriorityQueue<>(Collections.reverseOrder());
+    gssTime = 0;
   }
 
   public void startRunning() {
@@ -46,23 +43,19 @@ public class GSS extends Node {
     t.start();
   }
 
-  public void setState(GameState state) {
-    this.state = state;
-    saveStates.add(this.state.copy());
-  }
-
   public void addClient(Node client) {
     clients.add(client.getAddress());
   }
 
   /**
-   * Process one 'frame' of simulation, which involves incrementing simulation time and
-   * processing all events in the input queue up to the new current simulation time.
+   * Process one 'frame' of simulation, which involves incrementing simulation time and processing
+   * all events in the input queue up to the new current simulation time.
    */
   public synchronized void run() {
     boolean stateUpdated = processInputQueueEvents();
 
     if (stateUpdated) {
+      gssTime += 1;
       broadcastStateToClients();
     }
 
@@ -72,45 +65,36 @@ public class GSS extends Node {
   }
 
   private synchronized boolean processInputQueueEvents() {
+    boolean updated = !inputQueue.isEmpty();
 
-    makeEventSimTimesMonotonicallyIncreasing(inputQueue);
-
-    boolean updated = false;
     GameEventMessage input = inputQueue.poll();
     while (input != null) {
       GameEvent event = input.getEvent();
+      System.out.printf("[gss %s] processing input (s.t. %d)\n", getAddress(), event.getSimTime());
+      // FIXME: might need better ordering than this. roll back if the event to be executed
+      //        is "less than" the last event we executed.
       if (event.getSimTime() < state.getSimTime()) {
         // a mis-ordering happened and we need to roll back to this time
-        System.out.printf("[gss] rolling back to s.t. %d\n", event.getSimTime());
+        System.out.printf("[gss %s] rolling back to s.t. %d\n", getAddress(), event.getSimTime());
         rollbackTo(event.getSimTime());
+        inputQueue.add(input);
+        input = inputQueue.poll();
+        continue;
       }
 
       state.applyEvent(input.getEvent());
       executedQueue.add(input);
       saveStates.add(state.copy());
 
-      if (clients.contains(input.getSource())) {
-        outputQueue.add(new GameEventMessage(input.getEvent(), this.getAddress()));
+      if (!input.wasForwarded()) {
+        outputQueue.add(input);
+        input.setForwarded(true);
       }
 
-      updated = true;
       input = inputQueue.poll();
     }
-    return updated;
-  }
 
-  private void makeEventSimTimesMonotonicallyIncreasing(Queue<GameEventMessage> queue) {
-    if (queue.isEmpty()) {
-      return;
-    }
-    int lastSimTime = queue.peek().getEvent().getSimTime() - 1;
-    for (GameEventMessage message : queue) {
-      GameEvent event = message.getEvent();
-      if (event.getSimTime() == lastSimTime) {
-        event.setSimTime(lastSimTime + 1);
-      }
-      lastSimTime = event.getSimTime();
-    }
+    return updated;
   }
 
   private synchronized void broadcastOutputsToGSSs() {
@@ -123,36 +107,37 @@ public class GSS extends Node {
   }
 
   private synchronized void broadcastStateToClients() {
-    sendToAllClients(new GameStateMessage(state.copy()));
-    System.out.printf("[gss] sent state with s.t. %d to all clients\n", state.getSimTime());
+    System.out.printf("[gss %s] sent state (s.t. %d, g.t. %d) to all clients\n", getAddress(),
+        state.getSimTime(), this.gssTime);
+//    System.out.printf("[gss %s] executed event order: ", getAddress());
+//    GameEventMessage[] executedArray = executedQueue.toArray(new GameEventMessage[]{});
+//    Arrays.sort(executedArray, executedQueue.comparator());
+//    for (GameEventMessage executed : executedArray) {
+//      System.out.printf("(%d @%s)", executed.getEvent().getSimTime(), executed.getSource());
+//    }
+//    System.out.println();
+    sendToAllClients(new GameStateMessage(state.copy(), this.gssTime));
   }
 
   private synchronized void rollbackTo(int targetTime) {
     /*
      * 1. Roll back state to target time. Discard saved states from later times.
      * 2. Move all events in the executed queue with time > target time to the input queue.
-     * 3. Cancel (send anti-messages for) any outputs with time > target time that are affected.
+     * (3. Cancel (send anti-messages for) any outputs with time > target time that are affected.)
      */
-
-//    System.out.println("roll back to ".concat(Float.toString(targetTime)));
 
     // 1. roll back state to target time
     GameState saveState = saveStates.poll();
-    while (saveState != null && saveState.getSimTime() > targetTime) {
-      // send an anti-message to clients for each rolled-back state
-      sendAntiMessageForState(saveState);
-
+    while (saveState != null && saveState.getSimTime() >= targetTime) {
       saveState = saveStates.poll();
     }
-    if (saveState != null) {
-      saveStates.add(saveState);
-    }
-    assert saveStates.peek() != null; // there will always be at least the initial state left
-    state = saveStates.peek().copy();
+    saveStates.add(saveState);
+    assert saveState != null;
+    state = saveState.copy();
 
     // 2. move rolled-back events back to the input queue
     GameEventMessage executed = executedQueue.poll();
-    while (executed != null && executed.getEvent().getSimTime() > targetTime) {
+    while (executed != null && executed.getEvent().getSimTime() >= targetTime) {
       inputQueue.add(executed);
       executed = executedQueue.poll();
     }
@@ -175,11 +160,6 @@ public class GSS extends Node {
      */
   }
 
-  private void sendAntiMessageForState(GameState saveState) {
-    sendToAllClients(new GameStateMessage(saveState.copy(), true));
-    System.out.printf("[gss] sent anti-state with s.t. %d to all clients\n", saveState.getSimTime());
-  }
-
   private void sendToAllClients(Message message) {
     for (Address client : clients) {
       this.send(message, client);
@@ -197,11 +177,12 @@ public class GSS extends Node {
     inputQueue.add(gem);
   }
 
-
-  /*
-   * Methods exposed for testing
-   */
   public GameState getState() {
     return this.state;
+  }
+
+  public void setState(GameState state) {
+    this.state = state;
+    saveStates.add(this.state.copy());
   }
 }

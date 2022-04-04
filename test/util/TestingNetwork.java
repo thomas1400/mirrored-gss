@@ -8,8 +8,8 @@ import network.Network;
 
 public class TestingNetwork extends Network {
 
-  private boolean paused;
   private final Queue<Triple<Message, Address, Address>> queuedMessages;
+  private boolean paused;
 
   public TestingNetwork(float txSuccessRate) {
     super(txSuccessRate);

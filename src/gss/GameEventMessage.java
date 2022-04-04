@@ -3,19 +3,15 @@ package gss;
 import network.Address;
 import network.Message;
 
-public class GameEventMessage extends Message {
+public class GameEventMessage extends Message implements Comparable<GameEventMessage>{
+
   private final GameEvent event;
   private final Address source;
-  private final boolean isAntiMessage;
+  private boolean forwarded = false;
 
   public GameEventMessage(GameEvent event, Address source) {
-    this(event, source, false);
-  }
-
-  public GameEventMessage(GameEvent event, Address source, boolean isAntiMessage) {
     this.event = event;
     this.source = source;
-    this.isAntiMessage = isAntiMessage;
   }
 
   public GameEvent getEvent() {
@@ -26,11 +22,19 @@ public class GameEventMessage extends Message {
     return this.source;
   }
 
-  public boolean isAntiMessage() {
-    return this.isAntiMessage;
+  public void setForwarded(boolean forwarded) {
+    this.forwarded = forwarded;
   }
 
-  public GameEventMessage toAntiMessage() {
-    return new GameEventMessage(event, source, !isAntiMessage);
+  public boolean wasForwarded() {
+    return this.forwarded;
+  }
+
+  @Override
+  public int compareTo(GameEventMessage o) {
+    if (this.getEvent().getSimTime() == o.getEvent().getSimTime()) {
+      return Integer.compare(this.hashCode(), o.hashCode());
+    }
+    return Integer.compare(this.getEvent().getSimTime(), o.getEvent().getSimTime());
   }
 }
