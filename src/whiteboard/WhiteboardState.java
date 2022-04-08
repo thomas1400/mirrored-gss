@@ -18,7 +18,7 @@ public class WhiteboardState extends GameState {
   }
 
   public WhiteboardState(BufferedImage board, int simTime) {
-    super(simTime);
+    super(simTime, 0);
     this.board = board;
   }
 
@@ -98,10 +98,6 @@ public class WhiteboardState extends GameState {
     }
 
     return this.getSimTime() == ows.getSimTime() && imagesAreEqual(board, ows.getBoard());
-//    if (!equal) {
-//      System.out.printf("not equal: my hash is %d other is %d, diff %d\n", board.hashCode(), ows.getBoard().hashCode(), board.hashCode()-ows.getBoard().hashCode());
-//    }
-//    return equal;
   }
 
   public synchronized int numberOfBlackPixels() {

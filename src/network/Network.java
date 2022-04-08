@@ -49,7 +49,8 @@ public class Network {
                 "Attempted to send message to node without appropriate handler");
           }
           try {
-            handler.invoke(dstNode, message, src);
+            dstNode.updateVectorClock(message);
+            handler.invoke(dstNode, message, src); // TODO refactor all handlers to use message's source parameter
           } catch (InvocationTargetException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException(
@@ -64,17 +65,6 @@ public class Network {
     };
 
     retryTimer.scheduleAtFixedRate(tryTransmit, RETRY_MILLIS, RETRY_MILLIS);
-  }
-
-  public synchronized void broadcast(Message message, Address src) {
-    for (Address dst : nodes.keySet()) {
-      if (dst.equals(src)) {
-        continue;
-      }
-      if (canAcceptMessage(message, dst)) {
-        send(message, src, dst);
-      }
-    }
   }
 
   private Method getMessageHandler(Message message, Node node) {

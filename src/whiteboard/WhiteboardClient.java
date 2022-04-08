@@ -23,10 +23,9 @@ import network.Network;
 
 public class WhiteboardClient extends GSSClient implements MouseListener, MouseMotionListener {
 
-  private Component whiteboard;
   private WhiteboardState state;
+  private Component whiteboard;
   private Point lastDrawPoint;
-  private int stateGssTime;
 
   public WhiteboardClient(Address address, Address gss, Network network) {
     super(address, gss, network);
@@ -58,7 +57,6 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
     whiteboard.addMouseMotionListener(this);
     Image buffer = whiteboard.createImage(f.getSize().width, f.getSize().height);
     state = new WhiteboardState(buffer, 0);
-    stateGssTime = 0;
     redraw();
 
     f.setResizable(false);
@@ -78,7 +76,8 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
     Point currentPoint = e.getPoint();
     WhiteboardEvent delta = new WhiteboardEvent(lastDrawPoint, currentPoint,
         state.getSimTime() + 1);
-    GameEventMessage message = new GameEventMessage(delta, this.getAddress());
+    GameEventMessage message = new GameEventMessage(delta, this.getAddress(), gss, delta.getSimTime(),
+        state.getGssTime(), getVectorClock());
     lastDrawPoint = currentPoint;
 
     send(message, gss);
@@ -96,6 +95,7 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
    */
   public synchronized void handleGameStateMessage(Message m, Address sender) {
     if (!this.gss.equals(sender)) {
+      System.out.println("exiting here bad sender");
       return;
     }
     if (!(m instanceof GameStateMessage gsm)) {
@@ -105,7 +105,7 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
       throw new RuntimeException(
           "Mismatched state; WhiteboardClient can only handle WhiteboardState");
     }
-    if (state.getSimTime() < this.state.getSimTime() || gsm.getGssTime() <= this.stateGssTime) {
+    if (state.getSimTime() < this.state.getSimTime() || gsm.getGssTime() <= this.state.getGssTime()) {
       return; // it never makes sense to accept state with a lower sim time to our own
     }
 
@@ -113,10 +113,8 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
 //      state.getSimTime(), gsm.getGssTime());
 
     this.state = (WhiteboardState) state.copy();
-    this.stateGssTime = gsm.getGssTime();
 
     redraw();
-    // this.whiteboard.requestFocusInWindow(); // not sure if this is needed
   }
 
 
@@ -152,7 +150,8 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
    * Methods exposed for testing
    */
   public synchronized void acceptTestingEvent(WhiteboardEvent event) {
-    GameEventMessage message = new GameEventMessage(event, this.getAddress());
+    GameEventMessage message = new GameEventMessage(event, this.getAddress(), gss, event.getSimTime(),
+        state.getGssTime(), getVectorClock());
 
     send(message, gss);
     this.state.applyEvent(event);

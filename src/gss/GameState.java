@@ -11,10 +11,6 @@ public abstract class GameState implements Comparable<GameState> {
   private int simTime;
   private int gssTime;
 
-  public GameState(int simTime) {
-    this(simTime, 0);
-  }
-
   public GameState(int simTime, int gssTime) {
     this.simTime = simTime;
     this.gssTime = gssTime;

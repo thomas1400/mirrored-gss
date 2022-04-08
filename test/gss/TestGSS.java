@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Random;
 import network.Address;
 import network.Network;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import util.TestingNetwork;
@@ -38,13 +39,23 @@ public class TestGSS {
     this.nServers = nServers;
     this.nClients = nClients;
 
+    // Setup GSSConfiguration. Do this first b/c nodes use it in initialization
+    Address[] serverAddresses = new Address[nServers];
+    Address[] clientAddresses = new Address[nClients];
     for (int s = 0; s < nServers; s++) {
-      GSS server = new GSS(new Address(s), network);
+      serverAddresses[s] = new Address(s);
+    }
+    for (int c = 0; c < nClients; c++) {
+      clientAddresses[c] = new Address(nServers + c);
+    }
+    GSSConfiguration.SetConfiguration(nServers, nClients, serverAddresses, clientAddresses, connections);
+
+    for (int s = 0; s < nServers; s++) {
+      GSS server = new GSS(serverAddresses[s], network);
       servers.put(s, server);
     }
-
     for (int c = 0; c < nClients; c++) {
-      WhiteboardClient client = new WhiteboardClient(new Address(nServers + c),
+      WhiteboardClient client = new WhiteboardClient(clientAddresses[c],
           gss(connections[c]).getAddress(), network);
       gss(connections[c]).addClient(client);
       gss(connections[c]).setState(client.getState().copy());
@@ -53,6 +64,13 @@ public class TestGSS {
 
     for (int s = 0; s < nServers; s++) {
       gss(s).startRunning();
+    }
+  }
+
+  @AfterEach
+  public void tearDownNetwork() {
+    for (int s = 0; s < nServers; s++) {
+      gss(s).stopRunning();
     }
   }
 
@@ -176,12 +194,20 @@ public class TestGSS {
     sendRandomEvents(T, 2);
     sendRandomEvents(T, 1);
     sendRandomEvents(T, 0);
+    sendRandomEvents(T, 2);
+    sendRandomEvents(T, 3);
+    sendRandomEvents(T, 1);
+    sendRandomEvents(T, 0);
     awaitStateConvergence(5);
     network.pause();
     sendRandomEvents(T, 0);
     sendRandomEvents(T, 3);
     sendRandomEvents(T, 2);
     sendRandomEvents(T, 1);
+    sendRandomEvents(T, 2);
+    sendRandomEvents(T, 3);
+    sendRandomEvents(T, 1);
+    sendRandomEvents(T, 0);
     network.unpause();
     sendRandomEvents(T, 2);
     sendRandomEvents(T, 3);
@@ -204,15 +230,15 @@ public class TestGSS {
       boolean converged = true;
       for (int c = 0; c < nClients; c++) {
         if (!client(c).getState().equals(reference)) {
-          System.out.printf("Client %d state (st %d) does not equal reference (st %d)\n", c,
-              client(c).getState().getSimTime(), reference.getSimTime());
+          System.out.printf("Client %d state (st %d gt %d) does not equal reference (st %d gt %d)\n", c,
+              client(c).getState().getSimTime(), client(c).getState().getGssTime(), reference.getSimTime(), reference.getGssTime());
           converged = false;
         }
       }
       for (int s = 0; s < nServers; s++) {
         if (!gss(s).getState().equals(reference)) {
-          System.out.printf("Server %d state (st %d) does not equal reference (st %d)\n", s,
-              gss(s).getState().getSimTime(), reference.getSimTime());
+          System.out.printf("Server %d state (st %d gt %d) does not equal reference (st %d gt %d)\n", s,
+              gss(s).getState().getSimTime(), gss(s).getState().getGssTime(), reference.getSimTime(), reference.getGssTime());
           converged = false;
         }
       }

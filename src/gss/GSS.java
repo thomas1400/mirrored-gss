@@ -4,27 +4,27 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.PriorityQueue;
 import javax.swing.Timer;
 import network.Address;
 import network.Message;
 import network.Network;
 import network.Node;
-import whiteboard.WhiteboardState;
 
 public class GSS extends Node {
 
   public static final int GSS_UPDATE_PERIOD_MS = 25;
+  public static final int FOSSIL_COLLECT_PERIOD_MS = 1000;
 
   private final PriorityQueue<GameEventMessage> inputQueue;
   private final PriorityQueue<GameEventMessage> executedQueue;
   private final PriorityQueue<GameEventMessage> outputQueue;
-  private final PriorityQueue<GameEventMessage> outputtedQueue;
   private final PriorityQueue<GameState> saveStates;
   public Collection<Address> clients;
-  private GameState state;
   private int gssTime;
+  private GameState state;
+
+  private Collection<Timer> timers;
 
 
   public GSS(Address address, Network network) {
@@ -34,14 +34,25 @@ public class GSS extends Node {
     inputQueue = new PriorityQueue<>();
     executedQueue = new PriorityQueue<>(Collections.reverseOrder());
     outputQueue = new PriorityQueue<>();
-    outputtedQueue = new PriorityQueue<>(Collections.reverseOrder());
     saveStates = new PriorityQueue<>(Collections.reverseOrder());
     gssTime = 0;
   }
 
   public void startRunning() {
+    timers = new ArrayList<>();
     Timer t = new Timer(GSS_UPDATE_PERIOD_MS, e -> run());
+    Timer g = new Timer(FOSSIL_COLLECT_PERIOD_MS, e -> collectFossils());
+    g.setInitialDelay(FOSSIL_COLLECT_PERIOD_MS);
+    timers.add(t);
+    timers.add(g);
     t.start();
+    g.start();
+  }
+
+  public void stopRunning() {
+    for (Timer t : timers) {
+      t.stop();
+    }
   }
 
   public void addClient(Node client) {
@@ -100,24 +111,26 @@ public class GSS extends Node {
 
   private synchronized void broadcastOutputsToGSSs() {
     for (GameEventMessage output : outputQueue) {
-      outputtedQueue.add(output);
-      this.broadcast(output);
-      // if multi-threading, possibly delay here so that events have time to process
+      for (Address server : GSSConfiguration.getServerAddresses()) {
+        if (server.equals(this.getAddress())) {
+          continue;
+        }
+        GameEventMessage message = new GameEventMessage(output.getEvent(), getAddress(), server, output.getSimTime(), output.getGssTime(), getVectorClock());
+        message.setForwarded(output.wasForwarded());
+        this.send(message, server);
+      }
     }
+
     outputQueue.clear();
   }
 
   private synchronized void broadcastStateToClients() {
     System.out.printf("[gss %s] sent state (s.t. %d, g.t. %d) to all clients\n", getAddress(),
         state.getSimTime(), this.gssTime);
-//    System.out.printf("[gss %s] executed event order: ", getAddress());
-//    GameEventMessage[] executedArray = executedQueue.toArray(new GameEventMessage[]{});
-//    Arrays.sort(executedArray, executedQueue.comparator());
-//    for (GameEventMessage executed : executedArray) {
-//      System.out.printf("(%d @%s)", executed.getEvent().getSimTime(), executed.getSource());
-//    }
-//    System.out.println();
-    sendToAllClients(new GameStateMessage(state.copy(), this.gssTime));
+
+    for (Address client : clients) {
+      this.send(new GameStateMessage(state.copy(), this.getAddress(), client, state.getSimTime(), gssTime, getVectorClock()), client);
+    }
   }
 
   private synchronized void rollbackTo(int targetTime) {
@@ -146,26 +159,16 @@ public class GSS extends Node {
     if (executed != null) {
       executedQueue.add(executed); // add the last one back
     }
-
-    /*
-    // this is commented out because I made the simplifying assumption that executing game events
-    // does not generate new game events. therefore, there's no need for anti-messages at this level
-    // 3. cancel outputs
-    GameEventMessage output = outputtedQueue.poll();
-    while (output != null && output.getEvent().getSimTime() > targetTime) {
-      outputQueue.add(output.toAntiMessage());
-      output = outputtedQueue.poll();
-    }
-    if (output != null) {
-      outputtedQueue.add(output);
-    }
-     */
   }
 
-  private void sendToAllClients(Message message) {
-    for (Address client : clients) {
-      this.send(message, client);
-    }
+  private synchronized void collectFossils() {
+    saveStates.removeIf((s) -> s.getSimTime() < globalSimTime);
+    inputQueue.removeIf((i) -> i.getSimTime() < globalSimTime);
+    executedQueue.removeIf((e) -> e.getSimTime() < globalSimTime);
+    outputQueue.removeIf((o) -> o.getSimTime() < globalSimTime);
+
+    System.out.printf("[gss %s] ran fossil collect, gst %d, vc %s\n", getAddress(), globalSimTime,
+        Arrays.toString(vectorClock));
   }
 
   /* --------------

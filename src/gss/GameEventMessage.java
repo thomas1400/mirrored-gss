@@ -6,20 +6,15 @@ import network.Message;
 public class GameEventMessage extends Message implements Comparable<GameEventMessage>{
 
   private final GameEvent event;
-  private final Address source;
   private boolean forwarded = false;
 
-  public GameEventMessage(GameEvent event, Address source) {
+  public GameEventMessage(GameEvent event, Address src, Address dst, int simTime, int gssTime, int[] vectorClock) {
+    super(src, dst, simTime, gssTime, vectorClock);
     this.event = event;
-    this.source = source;
   }
 
   public GameEvent getEvent() {
     return this.event;
-  }
-
-  public Address getSource() {
-    return this.source;
   }
 
   public void setForwarded(boolean forwarded) {

@@ -1,22 +1,18 @@
 package gss;
 
+import network.Address;
 import network.Message;
 
 public class GameStateMessage extends Message {
 
   private final GameState state;
-  private final int gssTime;
 
-  public GameStateMessage(GameState state, int gssTime) {
+  public GameStateMessage(GameState state, Address src, Address dst, int simTime, int gssTime, int[] vectorClock) {
+    super(src, dst, simTime, gssTime, vectorClock);
     this.state = state;
-    this.gssTime = gssTime;
   }
 
   public GameState getState() {
     return this.state;
-  }
-
-  public int getGssTime() {
-    return this.gssTime;
   }
 }
