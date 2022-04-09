@@ -17,20 +17,45 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.ArrayList;
+import java.util.Collection;
+
 import network.Address;
 import network.Message;
 import network.Network;
 
+import javax.swing.*;
+
 public class WhiteboardClient extends GSSClient implements MouseListener, MouseMotionListener {
+
+  private static final int HEARTBEAT_PERIOD_MS = 250;
 
   private WhiteboardState state;
   private Component whiteboard;
   private Point lastDrawPoint;
+  private Timer heartbeatTimer;
 
   public WhiteboardClient(Address address, Address gss, Network network) {
     super(address, gss, network);
 
     buildUI();
+  }
+
+  // TODO : add heartbeats to clients to make fossil collection work without requiring
+  //  every client to be sending updates. can just send null events on a timer
+
+  public void startRunning() {
+    heartbeatTimer = new Timer(HEARTBEAT_PERIOD_MS, e -> sendHeartbeat());
+    heartbeatTimer.start();
+  }
+
+  private void sendHeartbeat() {
+    this.send(new GameEventMessage(null, getAddress(), gss,
+            state.getSimTime(), state.getGssTime(), getVectorClock()), gss);
+  }
+
+  public void stopRunning() {
+    heartbeatTimer.stop();
   }
 
   private void buildUI() {
@@ -95,7 +120,7 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
    */
   public synchronized void handleGameStateMessage(Message m, Address sender) {
     if (!this.gss.equals(sender)) {
-      System.out.println("exiting here bad sender");
+//      System.out.println("exiting here bad sender");
       return;
     }
     if (!(m instanceof GameStateMessage gsm)) {
@@ -149,7 +174,7 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
   /*
    * Methods exposed for testing
    */
-  public synchronized void acceptTestingEvent(WhiteboardEvent event) {
+  public synchronized void acceptGameEvent(WhiteboardEvent event) {
     GameEventMessage message = new GameEventMessage(event, this.getAddress(), gss, event.getSimTime(),
         state.getGssTime(), getVectorClock());
 

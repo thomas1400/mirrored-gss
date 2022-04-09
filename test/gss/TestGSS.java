@@ -83,7 +83,7 @@ public class TestGSS {
     // Then send a few events from each client and wait for the other client to receive it
     for (int i = 0; i < T; i++) {
       WhiteboardEvent delta = randomWhiteboardEvent(client(0));
-      client(0).acceptTestingEvent(delta);
+      client(0).acceptGameEvent(delta);
       await().atMost(Duration.ofSeconds(1))
           .until(() -> client(0).getState().equals(gss(0).getState()));
     }
@@ -220,7 +220,7 @@ public class TestGSS {
     // Send events one at a time
     for (int i = 0; i < number; i++) {
       WhiteboardEvent delta = randomWhiteboardEvent(client(clientNum));
-      client(clientNum).acceptTestingEvent(delta);
+      client(clientNum).acceptGameEvent(delta);
     }
   }
 

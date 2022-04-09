@@ -13,6 +13,7 @@ import network.Node;
 
 public class GSS extends Node {
 
+  public static final int HEARTBEAT_PERIOD_MS = 250;
   public static final int GSS_UPDATE_PERIOD_MS = 25;
   public static final int FOSSIL_COLLECT_PERIOD_MS = 1000;
 
@@ -42,11 +43,25 @@ public class GSS extends Node {
     timers = new ArrayList<>();
     Timer t = new Timer(GSS_UPDATE_PERIOD_MS, e -> run());
     Timer g = new Timer(FOSSIL_COLLECT_PERIOD_MS, e -> collectFossils());
+    Timer h = new Timer(HEARTBEAT_PERIOD_MS, e -> sendHeartbeat());
     g.setInitialDelay(FOSSIL_COLLECT_PERIOD_MS);
     timers.add(t);
     timers.add(g);
+    timers.add(h);
     t.start();
     g.start();
+    h.start();
+  }
+
+  private void sendHeartbeat() {
+    for (Address server : GSSConfiguration.getServerAddresses()) {
+      if (server.equals(this.getAddress())) {
+        continue;
+      }
+      GameEventMessage message = new GameEventMessage(null, getAddress(), server,
+              state.getSimTime(), state.getGssTime(), getVectorClock());
+      this.send(message, server);
+    }
   }
 
   public void stopRunning() {
@@ -76,6 +91,8 @@ public class GSS extends Node {
   }
 
   private synchronized boolean processInputQueueEvents() {
+    inputQueue.removeIf((gem) -> gem.getEvent() == null);
+
     boolean updated = !inputQueue.isEmpty();
 
     GameEventMessage input = inputQueue.poll();
@@ -162,13 +179,27 @@ public class GSS extends Node {
   }
 
   private synchronized void collectFossils() {
-    saveStates.removeIf((s) -> s.getSimTime() < globalSimTime);
-    inputQueue.removeIf((i) -> i.getSimTime() < globalSimTime);
+
+    PriorityQueue<GameState> saveStatesReversed = new PriorityQueue<>(saveStates.comparator().reversed());
+    saveStatesReversed.addAll(saveStates);
+    saveStates.clear();
+
+    GameState saveState = saveStatesReversed.poll();
+    while (saveState != null && saveState.getSimTime() < globalSimTime) {
+      saveState = saveStatesReversed.poll();
+    }
+    saveStatesReversed.add(saveState);
+    saveStates.addAll(saveStatesReversed);
+
+//    inputQueue.removeIf((i) -> i.getSimTime() < globalSimTime);
     executedQueue.removeIf((e) -> e.getSimTime() < globalSimTime);
     outputQueue.removeIf((o) -> o.getSimTime() < globalSimTime);
 
     System.out.printf("[gss %s] ran fossil collect, gst %d, vc %s\n", getAddress(), globalSimTime,
         Arrays.toString(vectorClock));
+    System.out.printf("[gss %s] queue lengths: %d, %d, %d, %d\n", getAddress(), saveStates.size(), inputQueue.size(), executedQueue.size(), outputQueue.size());
+
+    System.gc();
   }
 
   /* --------------

@@ -63,6 +63,7 @@ public class Node {
         }
       }
     }
+    message.getNewlyAcknowledgedMessages().clear();
 
     // Do a pairwise max of vector clock entries
     vectorClock[nodeIndex] = Math.min(lowestSimTimeUnacknowledged, highestSimTimeSent);
@@ -75,8 +76,8 @@ public class Node {
     for (int v : vectorClock) {
       globalSimTime = Math.min(globalSimTime, v);
     }
-    System.out.printf("[node %d] updated vector clock is %s\n", nodeIndex,
-        Arrays.toString(vectorClock));
+//    System.out.printf("[node %d] updated vector clock is %s\n", nodeIndex,
+//        Arrays.toString(vectorClock));
   }
 
   private synchronized void setLowestSimTimeFromUnacknowledged() {

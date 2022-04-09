@@ -1,6 +1,7 @@
 package network;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -61,5 +62,19 @@ public class Message {
 
   public Collection<Message> getNewlyAcknowledgedMessages() {
     return newlyAcknowledgedMessages;
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof Message omsg)) {
+      return false;
+    }
+
+    return omsg.destination.equals(destination) && omsg.source.equals(source) && omsg.simTime == simTime && omsg.gssTime == gssTime && Arrays.equals(omsg.vectorClock, vectorClock);
+  }
+
+  @Override
+  public int hashCode() {
+    return Integer.hashCode(destination.hashCode() + source.hashCode() + Integer.hashCode(simTime) + gssTime + Arrays.hashCode(vectorClock));
   }
 }

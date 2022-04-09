@@ -27,9 +27,9 @@ public class GameEventMessage extends Message implements Comparable<GameEventMes
 
   @Override
   public int compareTo(GameEventMessage o) {
-    if (this.getEvent().getSimTime() == o.getEvent().getSimTime()) {
+    if (this.getSimTime() == o.getSimTime()) {
       return Integer.compare(this.hashCode(), o.hashCode());
     }
-    return Integer.compare(this.getEvent().getSimTime(), o.getEvent().getSimTime());
+    return Integer.compare(this.getSimTime(), o.getSimTime());
   }
 }
