@@ -142,8 +142,8 @@ public class GSS extends Node {
   }
 
   private synchronized void broadcastStateToClients() {
-    System.out.printf("[gss %s] sent state (s.t. %d, g.t. %d) to all clients\n", getAddress(),
-        state.getSimTime(), this.gssTime);
+//    System.out.printf("[gss %s] sent state (s.t. %d, g.t. %d) to all clients\n", getAddress(),
+//        state.getSimTime(), this.gssTime);
 
     for (Address client : clients) {
       this.send(new GameStateMessage(state.copy(), this.getAddress(), client, state.getSimTime(), gssTime, getVectorClock()), client);
@@ -180,26 +180,32 @@ public class GSS extends Node {
 
   private synchronized void collectFossils() {
 
+//    System.out.printf("[gss %s] about to run fossil collect, gst %d, vc %s\n", getAddress(), globalSimTime,
+//        Arrays.toString(vectorClock));
+//    System.out.printf("[gss %s] initial queue lengths: %d, %d, %d, %d\n", getAddress(), saveStates.size(), inputQueue.size(), executedQueue.size(), outputQueue.size());
+
     PriorityQueue<GameState> saveStatesReversed = new PriorityQueue<>(saveStates.comparator().reversed());
     saveStatesReversed.addAll(saveStates);
     saveStates.clear();
 
     GameState saveState = saveStatesReversed.poll();
+    GameState last = saveState;
     while (saveState != null && saveState.getSimTime() < globalSimTime) {
+      last = saveState;
       saveState = saveStatesReversed.poll();
     }
-    saveStatesReversed.add(saveState);
+    saveStatesReversed.add(last);
     saveStates.addAll(saveStatesReversed);
 
 //    inputQueue.removeIf((i) -> i.getSimTime() < globalSimTime);
     executedQueue.removeIf((e) -> e.getSimTime() < globalSimTime);
     outputQueue.removeIf((o) -> o.getSimTime() < globalSimTime);
 
-    System.out.printf("[gss %s] ran fossil collect, gst %d, vc %s\n", getAddress(), globalSimTime,
-        Arrays.toString(vectorClock));
-    System.out.printf("[gss %s] queue lengths: %d, %d, %d, %d\n", getAddress(), saveStates.size(), inputQueue.size(), executedQueue.size(), outputQueue.size());
+//    System.out.printf("[gss %s] ran fossil collect, gst %d, vc %s\n", getAddress(), globalSimTime,
+//        Arrays.toString(vectorClock));
+//    System.out.printf("[gss %s] queue lengths: %d, %d, %d, %d\n", getAddress(), saveStates.size(), inputQueue.size(), executedQueue.size(), outputQueue.size());
 
-    System.gc();
+//    System.gc();
   }
 
   /* --------------

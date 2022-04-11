@@ -1,10 +1,15 @@
 import gss.GSS;
 import gss.GSSConfiguration;
+import java.awt.Image;
 import java.awt.Point;
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.imageio.ImageIO;
 import javax.swing.Timer;
 import network.Address;
 import network.Network;
@@ -24,9 +29,9 @@ public class Main {
 
     setupNetwork(0.8f, 2, nClients, new int[]{0, 0, 0, 1, 1, 1});
 
-//    for (int c = 0; c < nClients; c++) {
-//      setupTurtleForClient(c);
-//    }
+    for (int c = 0; c < nClients; c++) {
+      setupTurtleForClient(c);
+    }
   }
 
   public static void setupNetwork(float txSuccessRate, int nServers, int nClients,
@@ -54,6 +59,7 @@ public class Main {
     for (int c = 0; c < nClients; c++) {
       WhiteboardClient client = new WhiteboardClient(clientAddresses[c],
           gss(connections[c]).getAddress(), network);
+      client.moveWindow(c, 2, 3);
       gss(connections[c]).addClient(client);
       gss(connections[c]).setState(client.getState().copy());
       clients.put(c, client);
@@ -72,28 +78,36 @@ public class Main {
     // sending a new WhiteboardEvent every 10ms.
 
     AtomicReference<Point> current = new AtomicReference<>(randomPointOnCanvas(client(c)));
-    Point startOfMovement = current.get().getLocation();
+    AtomicReference<Point> startOfMovement = new AtomicReference<>(current.get().getLocation());
     AtomicReference<Timer> turtleMove = new AtomicReference<>(new Timer(1000, (e)->{}));
 
-    final int TARGET_PERIOD = 5000;
-    final int MOVE_PERIOD = 10;
+    final int TARGET_PERIOD = 10000;
+    final int MOVE_PERIOD = 1000 / 24;
 
     Timer turtleTarget = new Timer(TARGET_PERIOD, (te) -> {
       Point target = randomPointOnCanvas(client(c));
 
       turtleMove.get().stop();
+      startOfMovement.set(current.get());
+
+      AtomicInteger frames = new AtomicInteger();
 
       turtleMove.set(new Timer(MOVE_PERIOD, (me) -> {
-        Point next = lerp(startOfMovement, target, ((float) MOVE_PERIOD) / TARGET_PERIOD);
+        Point next = lerp(startOfMovement.get(), target, frames.get() * ((float) MOVE_PERIOD) / TARGET_PERIOD);
         client(c).acceptGameEvent(new WhiteboardEvent(current.get(), next, client(c).getState().getSimTime()+1));
         current.set(next);
+        frames.getAndIncrement();
+
+        client(c).drawTurtleAt(current.get());
       }));
 
       turtleMove.get().start();
     });
 
+    turtleTarget.setInitialDelay(1000);
     turtleTarget.start();
   }
+
 
   private static Point randomPointOnCanvas(WhiteboardClient client) {
     WhiteboardState state = client.getState();

@@ -20,7 +20,7 @@ public class Node {
   protected int nodeIndex;
   private int lowestSimTimeUnacknowledged = -1;
   private int highestSimTimeSent;
-  private final Set<Message> unacknowledgedMessages;
+  protected final Set<Message> unacknowledgedMessages;
   private final Map<Address, Collection<Message>> newlyAcknowledgedMessages;
 
   public Node(Address address, Network network) {
