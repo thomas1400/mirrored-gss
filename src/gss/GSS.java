@@ -1,7 +1,6 @@
 package gss;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.PriorityQueue;
@@ -13,6 +12,11 @@ import network.Node;
 
 public class GSS extends Node {
 
+  /**
+   * Game State Server (GSS). Receives updates from clients and other GSSs and orders them using
+   * Time Warp. Most of the details of Time Warp are in processInputQueueEvents and rollbackTo.
+   */
+
   public static final int HEARTBEAT_PERIOD_MS = 250;
   public static final int GSS_UPDATE_PERIOD_MS = 25;
   public static final int FOSSIL_COLLECT_PERIOD_MS = 1000;
@@ -21,7 +25,7 @@ public class GSS extends Node {
   private final PriorityQueue<GameEventMessage> executedQueue;
   private final PriorityQueue<GameEventMessage> outputQueue;
   private final PriorityQueue<GameState> saveStates;
-  public Collection<Address> clients;
+  public final Collection<Address> clients;
   private int gssTime;
   private GameState state;
 
@@ -39,6 +43,9 @@ public class GSS extends Node {
     gssTime = 0;
   }
 
+  /**
+   * Must be called by the main thread to start timers.
+   */
   public void startRunning() {
     timers = new ArrayList<>();
     Timer t = new Timer(GSS_UPDATE_PERIOD_MS, e -> run());
@@ -53,13 +60,16 @@ public class GSS extends Node {
     h.start();
   }
 
+  /**
+   * Send null heartbeats for GVT determination.
+   */
   private void sendHeartbeat() {
     for (Address server : GSSConfiguration.getServerAddresses()) {
       if (server.equals(this.getAddress())) {
         continue;
       }
       GameEventMessage message = new GameEventMessage(null, getAddress(), server,
-              state.getSimTime(), state.getGssTime(), getVectorClock());
+          state.getSimTime(), state.getGssTime(), getVectorClock());
       this.send(message, server);
     }
   }
@@ -75,8 +85,7 @@ public class GSS extends Node {
   }
 
   /**
-   * Process one 'frame' of simulation, which involves incrementing simulation time and processing
-   * all events in the input queue up to the new current simulation time.
+   * Process one 'frame' of simulation, which involves processing events in the input queue.
    */
   public synchronized void run() {
     boolean stateUpdated = processInputQueueEvents();
@@ -90,6 +99,11 @@ public class GSS extends Node {
     }
   }
 
+  /**
+   * Process incoming GameEventMessages in the inputQueue. Most of the logic of Time Warp is here.
+   *
+   * @return true if state has changed, otherwise false
+   */
   private synchronized boolean processInputQueueEvents() {
     inputQueue.removeIf((gem) -> gem.getEvent() == null);
 
@@ -98,10 +112,8 @@ public class GSS extends Node {
     GameEventMessage input = inputQueue.poll();
     while (input != null) {
       GameEvent event = input.getEvent();
-//      System.out.printf("[gss %s] processing input (s.t. %d)\n", getAddress(), event.getSimTime());
       if (!executedQueue.isEmpty() && input.compareTo(executedQueue.peek()) < 0) {
         // a mis-ordering happened and we need to roll back to this time
-//        System.out.printf("[gss %s] rolling back to s.t. %d\n", getAddress(), event.getSimTime());
         rollbackTo(event.getSimTime());
         inputQueue.add(input);
         input = inputQueue.poll();
@@ -111,7 +123,6 @@ public class GSS extends Node {
       gssTime += 1;
       state.applyEvent(input.getEvent());
       state.setGssTime(gssTime);
-//      System.out.printf("[gss %s] applied input (s.t. %d @ %s) new bp=%d\n", getAddress(), event.getSimTime(), input.getSource(), ((WhiteboardState) state).numberOfBlackPixels());
       executedQueue.add(input);
       saveStates.add(state.copy());
 
@@ -126,13 +137,17 @@ public class GSS extends Node {
     return updated;
   }
 
+  /**
+   * Forward events in the outputQueue to other GSSs in the network as GameEventMessages.
+   */
   private synchronized void broadcastOutputsToGSSs() {
     for (GameEventMessage output : outputQueue) {
       for (Address server : GSSConfiguration.getServerAddresses()) {
         if (server.equals(this.getAddress())) {
           continue;
         }
-        GameEventMessage message = new GameEventMessage(output.getEvent(), getAddress(), server, output.getSimTime(), output.getGssTime(), getVectorClock());
+        GameEventMessage message = new GameEventMessage(output.getEvent(), getAddress(), server,
+            output.getSimTime(), output.getGssTime(), getVectorClock());
         message.setForwarded(output.wasForwarded());
         this.send(message, server);
       }
@@ -141,15 +156,22 @@ public class GSS extends Node {
     outputQueue.clear();
   }
 
+  /**
+   * Send this GSS's current state out to its clients as a GameStateMessage.
+   */
   private synchronized void broadcastStateToClients() {
-//    System.out.printf("[gss %s] sent state (s.t. %d, g.t. %d) to all clients\n", getAddress(),
-//        state.getSimTime(), this.gssTime);
-
     for (Address client : clients) {
-      this.send(new GameStateMessage(state.copy(), this.getAddress(), client, state.getSimTime(), gssTime, getVectorClock()), client);
+      this.send(
+          new GameStateMessage(state.copy(), this.getAddress(), client, state.getSimTime(), gssTime,
+              getVectorClock()), client);
     }
   }
 
+  /**
+   * Roll back to a saved state when a misordering happens.
+   *
+   * @param targetTime sim time to roll back to
+   */
   private synchronized void rollbackTo(int targetTime) {
     /*
      * 1. Roll back state to target time. Discard saved states from later times.
@@ -165,7 +187,6 @@ public class GSS extends Node {
     saveStates.add(saveState);
     assert saveState != null;
     state = saveState.copy();
-//    System.out.printf("[gss %s] after rollback bp = %d, st = %d\n", getAddress(), ((WhiteboardState) state).numberOfBlackPixels(), state.getSimTime());
 
     // 2. move rolled-back events back to the input queue
     GameEventMessage executed = executedQueue.poll();
@@ -178,16 +199,18 @@ public class GSS extends Node {
     }
   }
 
+  /**
+   * Throw out old snapshots and stored events with sim time less than GVT. These are committed and
+   * safe to discard. GVT is managed by the parent class Node.
+   */
   private synchronized void collectFossils() {
-
-//    System.out.printf("[gss %s] about to run fossil collect, gst %d, vc %s\n", getAddress(), globalSimTime,
-//        Arrays.toString(vectorClock));
-//    System.out.printf("[gss %s] initial queue lengths: %d, %d, %d, %d\n", getAddress(), saveStates.size(), inputQueue.size(), executedQueue.size(), outputQueue.size());
-
-    PriorityQueue<GameState> saveStatesReversed = new PriorityQueue<>(saveStates.comparator().reversed());
+    PriorityQueue<GameState> saveStatesReversed = new PriorityQueue<>(
+        saveStates.comparator().reversed());
     saveStatesReversed.addAll(saveStates);
     saveStates.clear();
 
+    // Here, be sure to keep at least one saveState with sim time < GVT so that there's
+    // one to roll back to if needed.
     GameState saveState = saveStatesReversed.poll();
     GameState last = saveState;
     while (saveState != null && saveState.getSimTime() < globalSimTime) {
@@ -197,15 +220,8 @@ public class GSS extends Node {
     saveStatesReversed.add(last);
     saveStates.addAll(saveStatesReversed);
 
-//    inputQueue.removeIf((i) -> i.getSimTime() < globalSimTime);
     executedQueue.removeIf((e) -> e.getSimTime() < globalSimTime);
     outputQueue.removeIf((o) -> o.getSimTime() < globalSimTime);
-
-//    System.out.printf("[gss %s] ran fossil collect, gst %d, vc %s\n", getAddress(), globalSimTime,
-//        Arrays.toString(vectorClock));
-//    System.out.printf("[gss %s] queue lengths: %d, %d, %d, %d\n", getAddress(), saveStates.size(), inputQueue.size(), executedQueue.size(), outputQueue.size());
-
-//    System.gc();
   }
 
   /* --------------

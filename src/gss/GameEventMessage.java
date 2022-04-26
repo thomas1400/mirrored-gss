@@ -3,12 +3,13 @@ package gss;
 import network.Address;
 import network.Message;
 
-public class GameEventMessage extends Message implements Comparable<GameEventMessage>{
+public class GameEventMessage extends Message implements Comparable<GameEventMessage> {
 
   private final GameEvent event;
   private boolean forwarded = false;
 
-  public GameEventMessage(GameEvent event, Address src, Address dst, int simTime, int gssTime, int[] vectorClock) {
+  public GameEventMessage(GameEvent event, Address src, Address dst, int simTime, int gssTime,
+      int[] vectorClock) {
     super(src, dst, simTime, gssTime, vectorClock);
     this.event = event;
   }

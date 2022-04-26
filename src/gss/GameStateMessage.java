@@ -7,7 +7,8 @@ public class GameStateMessage extends Message {
 
   private final GameState state;
 
-  public GameStateMessage(GameState state, Address src, Address dst, int simTime, int gssTime, int[] vectorClock) {
+  public GameStateMessage(GameState state, Address src, Address dst, int simTime, int gssTime,
+      int[] vectorClock) {
     super(src, dst, simTime, gssTime, vectorClock);
     this.state = state;
   }

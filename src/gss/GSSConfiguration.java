@@ -6,6 +6,12 @@ import network.Address;
 
 public class GSSConfiguration {
 
+  /**
+   * Singleton class to hold GSS configuration information. Added as a stopgap measure when trying
+   * to figure out how to distribute config info. Probably not a great idea and isn't used as much
+   * as it could be.
+   */
+
   private static int nNodes;
   private static int nServers;
   private static int nClients;
@@ -13,6 +19,9 @@ public class GSSConfiguration {
   private static int[] connections;
   private static Address[] serverAddresses;
   private static Address[] clientAddresses;
+
+  private GSSConfiguration() {
+  }
 
   public static void SetConfiguration(int nServers, int nClients, Address[] serverAddresses,
       Address[] clientAddresses, int[] connections) {
@@ -30,7 +39,7 @@ public class GSSConfiguration {
       nodeIndices.put(serverAddresses[s], s);
     }
     for (int c = 0; c < nClients; c++) {
-      nodeIndices.put(clientAddresses[c], c+nServers);
+      nodeIndices.put(clientAddresses[c], c + nServers);
     }
   }
 

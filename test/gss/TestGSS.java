@@ -48,7 +48,8 @@ public class TestGSS {
     for (int c = 0; c < nClients; c++) {
       clientAddresses[c] = new Address(nServers + c);
     }
-    GSSConfiguration.SetConfiguration(nServers, nClients, serverAddresses, clientAddresses, connections);
+    GSSConfiguration.SetConfiguration(nServers, nClients, serverAddresses, clientAddresses,
+        connections);
 
     for (int s = 0; s < nServers; s++) {
       GSS server = new GSS(serverAddresses[s], network);
@@ -230,15 +231,19 @@ public class TestGSS {
       boolean converged = true;
       for (int c = 0; c < nClients; c++) {
         if (!client(c).getState().equals(reference)) {
-          System.out.printf("Client %d state (st %d gt %d) does not equal reference (st %d gt %d)\n", c,
-              client(c).getState().getSimTime(), client(c).getState().getGssTime(), reference.getSimTime(), reference.getGssTime());
+          System.out.printf(
+              "Client %d state (st %d gt %d) does not equal reference (st %d gt %d)\n", c,
+              client(c).getState().getSimTime(), client(c).getState().getGssTime(),
+              reference.getSimTime(), reference.getGssTime());
           converged = false;
         }
       }
       for (int s = 0; s < nServers; s++) {
         if (!gss(s).getState().equals(reference)) {
-          System.out.printf("Server %d state (st %d gt %d) does not equal reference (st %d gt %d)\n", s,
-              gss(s).getState().getSimTime(), gss(s).getState().getGssTime(), reference.getSimTime(), reference.getGssTime());
+          System.out.printf(
+              "Server %d state (st %d gt %d) does not equal reference (st %d gt %d)\n", s,
+              gss(s).getState().getSimTime(), gss(s).getState().getGssTime(),
+              reference.getSimTime(), reference.getGssTime());
           converged = false;
         }
       }

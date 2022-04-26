@@ -1,15 +1,11 @@
 import gss.GSS;
 import gss.GSSConfiguration;
-import java.awt.Image;
 import java.awt.Point;
-import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.imageio.ImageIO;
 import javax.swing.Timer;
 import network.Address;
 import network.Network;
@@ -18,6 +14,7 @@ import whiteboard.WhiteboardEvent;
 import whiteboard.WhiteboardState;
 
 public class Main {
+
   private static Map<Integer, GSS> servers;
   private static Map<Integer, WhiteboardClient> clients;
   private static Random random;
@@ -50,7 +47,8 @@ public class Main {
     for (int c = 0; c < nClients; c++) {
       clientAddresses[c] = new Address(nServers + c);
     }
-    GSSConfiguration.SetConfiguration(nServers, nClients, serverAddresses, clientAddresses, connections);
+    GSSConfiguration.SetConfiguration(nServers, nClients, serverAddresses, clientAddresses,
+        connections);
 
     for (int s = 0; s < nServers; s++) {
       GSS server = new GSS(serverAddresses[s], network);
@@ -79,7 +77,8 @@ public class Main {
 
     AtomicReference<Point> current = new AtomicReference<>(randomPointOnCanvas(client(c)));
     AtomicReference<Point> startOfMovement = new AtomicReference<>(current.get().getLocation());
-    AtomicReference<Timer> turtleMove = new AtomicReference<>(new Timer(1000, (e)->{}));
+    AtomicReference<Timer> turtleMove = new AtomicReference<>(new Timer(1000, (e) -> {
+    }));
 
     final int TARGET_PERIOD = 10000;
     final int MOVE_PERIOD = 1000 / 24;
@@ -93,8 +92,10 @@ public class Main {
       AtomicInteger frames = new AtomicInteger();
 
       turtleMove.set(new Timer(MOVE_PERIOD, (me) -> {
-        Point next = lerp(startOfMovement.get(), target, frames.get() * ((float) MOVE_PERIOD) / TARGET_PERIOD);
-        client(c).acceptGameEvent(new WhiteboardEvent(current.get(), next, client(c).getState().getSimTime()+1));
+        Point next = lerp(startOfMovement.get(), target,
+            frames.get() * ((float) MOVE_PERIOD) / TARGET_PERIOD);
+        client(c).acceptGameEvent(
+            new WhiteboardEvent(current.get(), next, client(c).getState().getSimTime() + 1));
         current.set(next);
         frames.getAndIncrement();
 

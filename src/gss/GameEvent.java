@@ -8,7 +8,7 @@ public abstract class GameEvent implements Comparable<GameEvent> {
 
   private final int simTime;
 
-  public GameEvent(int simTime) {
+  protected GameEvent(int simTime) {
     this.simTime = simTime;
   }
 
@@ -16,6 +16,7 @@ public abstract class GameEvent implements Comparable<GameEvent> {
     return simTime;
   }
 
+  @Override
   public int compareTo(GameEvent o) {
     if (this.getSimTime() == o.getSimTime()) {
       return Integer.compare(this.hashCode(), o.hashCode());

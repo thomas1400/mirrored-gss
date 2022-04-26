@@ -2,7 +2,6 @@ package network;
 
 import gss.GSSConfiguration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -51,16 +50,21 @@ public class Node {
     this.network.send(message, this.address, dst);
   }
 
+  /**
+   * Called by Network whenever a message is delivered. Update vectorClock with new info in the
+   * message's metadata and vectorClock.
+   *
+   * @param message received message
+   */
   public synchronized void updateVectorClock(Message message) {
     newlyAcknowledgedMessages.putIfAbsent(message.getSource(), new ArrayList<>());
     newlyAcknowledgedMessages.get(message.getSource()).add(message);
 
     // Update our vector clock from the message's vector clock and metadata
     for (Message acked : message.getNewlyAcknowledgedMessages()) {
-      if (unacknowledgedMessages.remove(acked)) {
-        if (acked.getSimTime() == lowestSimTimeUnacknowledged) {
-          setLowestSimTimeFromUnacknowledged();
-        }
+      if (unacknowledgedMessages.remove(acked)
+          && acked.getSimTime() == lowestSimTimeUnacknowledged) {
+        setLowestSimTimeFromUnacknowledged();
       }
     }
     message.getNewlyAcknowledgedMessages().clear();
@@ -76,8 +80,6 @@ public class Node {
     for (int v : vectorClock) {
       globalSimTime = Math.min(globalSimTime, v);
     }
-//    System.out.printf("[node %d] updated vector clock is %s\n", nodeIndex,
-//        Arrays.toString(vectorClock));
   }
 
   private synchronized void setLowestSimTimeFromUnacknowledged() {

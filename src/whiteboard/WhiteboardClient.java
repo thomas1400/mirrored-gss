@@ -6,7 +6,6 @@ import gss.GameStateMessage;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -20,17 +19,19 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-
 import javax.imageio.ImageIO;
+import javax.swing.Timer;
 import network.Address;
 import network.Message;
 import network.Network;
 
-import javax.swing.*;
-
 public class WhiteboardClient extends GSSClient implements MouseListener, MouseMotionListener {
+
+  /**
+   * Collaborative whiteboard for testing Time Warp.
+   * <p>
+   * Much of this code is taken from a tutorial at: https://docstore.mik.ua/orelly/java-ent/dist/ch10_02.htm
+   */
 
   private static final int HEARTBEAT_PERIOD_MS = 250;
 
@@ -61,7 +62,7 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
 
   private void sendHeartbeat() {
     this.send(new GameEventMessage(null, getAddress(), gss,
-            state.getSimTime(), state.getGssTime(), getVectorClock()), gss);
+        state.getSimTime(), state.getGssTime(), getVectorClock()), gss);
   }
 
   public void stopRunning() {
@@ -80,7 +81,7 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
     canvas1.setBackground(Color.white);
     gridbag.setConstraints(canvas1, c);
     frame.add(canvas1);
-    Label label1 = new Label("Collaborative Whiteboard"); // TODO add user ID?
+    Label label1 = new Label("Collaborative Whiteboard");
     label1.setSize(100, 30);
     label1.setAlignment(Label.CENTER);
     gridbag.setConstraints(label1, c);
@@ -114,7 +115,8 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
     Point currentPoint = e.getPoint();
     WhiteboardEvent delta = new WhiteboardEvent(lastDrawPoint, currentPoint,
         state.getSimTime() + 1);
-    GameEventMessage message = new GameEventMessage(delta, this.getAddress(), gss, delta.getSimTime(),
+    GameEventMessage message = new GameEventMessage(delta, this.getAddress(), gss,
+        delta.getSimTime(),
         state.getGssTime(), getVectorClock());
     lastDrawPoint = currentPoint;
 
@@ -133,7 +135,6 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
    */
   public synchronized void handleGameStateMessage(Message m, Address sender) {
     if (!this.gss.equals(sender)) {
-//      System.out.println("exiting here bad sender");
       return;
     }
     if (!(m instanceof GameStateMessage gsm)) {
@@ -143,12 +144,9 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
       throw new RuntimeException(
           "Mismatched state; WhiteboardClient can only handle WhiteboardState");
     }
-    if (gsm.getGssTime() <= this.state.getGssTime()) { // state.getSimTime() < this.state.getSimTime() ||
-      return; // it never makes sense to accept state with a lower sim time to our own
+    if (gsm.getGssTime() <= this.state.getGssTime()) {
+      return; // it never makes sense to accept state with a lower gss time to our own
     }
-
-//    System.out.printf("[client] addr %s received state (s.t. %d, g.t. %d)\n", this.getAddress(),
-//      state.getSimTime(), gsm.getGssTime());
 
     this.state = (WhiteboardState) state.copy();
 
@@ -191,6 +189,9 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
   public void mouseMoved(MouseEvent e) {
   }
 
+  /**
+   * Set the position on the screen. Used for demo.
+   */
   public void moveWindow(int windowIndex, int r, int c) {
     int rOffset = frame.getSize().height + 50;
     int cOffset = frame.getSize().width + 50;
@@ -199,6 +200,9 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
     frame.setLocation(cOffset * wc, rOffset * wr);
   }
 
+  /**
+   * Draw a turtle. Used for demo.
+   */
   public void drawTurtleAt(Point point) {
     if (turtleSprite != null) {
       int width = turtleSprite.getWidth(null);
@@ -212,7 +216,8 @@ public class WhiteboardClient extends GSSClient implements MouseListener, MouseM
    * Methods exposed for testing
    */
   public synchronized void acceptGameEvent(WhiteboardEvent event) {
-    GameEventMessage message = new GameEventMessage(event, this.getAddress(), gss, event.getSimTime(),
+    GameEventMessage message = new GameEventMessage(event, this.getAddress(), gss,
+        event.getSimTime(),
         state.getGssTime(), getVectorClock());
 
     send(message, gss);

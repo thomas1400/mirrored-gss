@@ -109,7 +109,7 @@ public class WhiteboardState extends GameState {
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
         // Compare the pixels for equality.
-        if (board.getRGB(x,y) == Color.BLACK.getRGB()) {
+        if (board.getRGB(x, y) == Color.BLACK.getRGB()) {
           black++;
         }
       }

@@ -30,7 +30,6 @@ public class Network {
 
   public synchronized void send(Message message, Address src, Address dst) {
     if (!nodes.containsKey(dst)) {
-      System.out.print(dst);
       throw new RuntimeException("Nonexistent destination address for message");
     }
 
@@ -50,14 +49,12 @@ public class Network {
           }
           try {
             dstNode.updateVectorClock(message);
-            handler.invoke(dstNode, message, src); // TODO refactor all handlers to use message's source parameter
+            handler.invoke(dstNode, message, src);
           } catch (InvocationTargetException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException(
                 "InvocationTargetException or IllegalAccessException in send");
           }
-
-//          System.out.printf("sent message from address %s to %s%n", src, dst);
 
           retryTimer.cancel();
         }
@@ -75,9 +72,5 @@ public class Network {
     } catch (NoSuchMethodException e) {
       return null;
     }
-  }
-
-  private boolean canAcceptMessage(Message message, Address dst) {
-    return getMessageHandler(message, nodes.get(dst)) != null;
   }
 }
